@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic-Tac-Toe AI | Alpha-Beta Pruning</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      color: #00eaff;
+      text-shadow: 0 0 10px #00eaff, 0 0 20px #00eaff;
+      margin-bottom: 10px;
+    }
+
+    .difficulty {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    select {
+      background: #161b22;
+      color: #00eaff;
+      border: 2px solid #00eaff;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    select:hover {
+      background: #00eaff22;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 10px;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #111;
+      border: 2px solid #00eaff;
+      border-radius: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2.3rem;
+      color: #00eaff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 10px #00eaff44;
+    }
+
+    .cell:hover {
+      background: #00eaff33;
+      transform: scale(1.05);
+    }
+
+    .status {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 18px;
+      background: #00eaff;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background: #00bcd4;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 10px;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe AI 🤖</h1>
+
+  <div class="difficulty">
+    <label for="difficulty">Difficulty: </label>
+    <select id="difficulty">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard" selected>Hard</option>
+    </select>
+  </div>
+
+  <div class="board" id="board"></div>
+  <div class="status" id="status"></div>
+  <button id="restart">Play Again</button>
+
+  <footer>Mini Project | Alpha-Beta Pruning AI</footer>
+
+  <script>
+    const board = document.getElementById('board');
+    const statusText = document.getElementById('status');
+    const restartBtn = document.getElementById('restart');
+    const difficultySelect = document.getElementById('difficulty');
+
+    let gameBoard = ["", "", "", "", "", "", "", "", ""];
+    const HUMAN = "X";
+    const AI = "O";
+    let gameOver = false;
+
+    function renderBoard() {
+      board.innerHTML = "";
+      gameBoard.forEach((cell, index) => {
+        const cellDiv = document.createElement('div');
+        cellDiv.classList.add('cell');
+        cellDiv.textContent = cell;
+        cellDiv.addEventListener('click', () => makeMove(index));
+        board.appendChild(cellDiv);
+      });
+    }
+
+    function makeMove(index) {
+      if (!gameBoard[index] && !gameOver) {
+        gameBoard[index] = HUMAN;
+        renderBoard();
+
+        if (checkWinner(gameBoard, HUMAN)) {
+          statusText.textContent = "You Win! 🎉";
+          gameOver = true;
+          return;
+        }
+
+        if (isDraw()) {
+          statusText.textContent = "It's a Draw! 😐";
+          gameOver = true;
+          return;
+        }
+
+        // AI Move
+        setTimeout(() => {
+          const bestMove = findBestMove(gameBoard);
+          gameBoard[bestMove] = AI;
+          renderBoard();
+
+          if (checkWinner(gameBoard, AI)) {
+            statusText.textContent = "AI Wins! 🤖";
+            gameOver = true;
+            return;
+          }
+
+          if (isDraw()) {
+            statusText.textContent = "It's a Draw! 😐";
+            gameOver = true;
+            return;
+          }
+        }, 300);
+      }
+    }
+
+    function checkWinner(board, player) {
+      const winPatterns = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6]
+      ];
+      return winPatterns.some(pattern =>
+        pattern.every(index => board[index] === player)
+      );
+    }
+
+    function isDraw() {
+      return gameBoard.every(cell => cell !== "");
+    }
+
+    // --- Alpha-Beta Pruning ---
+    function minimax(board, depth, isMaximizing, alpha, beta) {
+      if (checkWinner(board, AI)) return 10 - depth;
+      if (checkWinner(board, HUMAN)) return depth - 10;
+      if (board.every(cell => cell !== "")) return 0;
+
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === "") {
+            board[i] = AI;
+            let eval = minimax(board, depth + 1, false, alpha, beta);
+            board[i] = "";
+            maxEval = Math.max(maxEval, eval);
+            alpha = Math.max(alpha, eval);
+            if (beta <= alpha) break; // pruning
+          }
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === "") {
+            board[i] = HUMAN;
+            let eval = minimax(board, depth + 1, true, alpha, beta);
+            board[i] = "";
+            minEval = Math.min(minEval, eval);
+            beta = Math.min(beta, eval);
+            if (beta <= alpha) break; // pruning
+          }
+        }
+        return minEval;
+      }
+    }
+
+    // --- Difficulty-based AI ---
+    function findBestMove(board) {
+      const difficulty = difficultySelect.value;
+
+      // Easy: random move
+      if (difficulty === "easy") {
+        const empty = board.map((v, i) => (v === "" ? i : null)).filter(v => v !== null);
+        return empty[Math.floor(Math.random() * empty.length)];
+      }
+
+      // Medium: 50% random, 50% smart
+      if (difficulty === "medium" && Math.random() < 0.5) {
+        const empty = board.map((v, i) => (v === "" ? i : null)).filter(v => v !== null);
+        return empty[Math.floor(Math.random() * empty.length)];
+      }
+
+      // Hard: full minimax with alpha-beta pruning
+      let bestValue = -Infinity;
+      let move = -1;
+      for (let i = 0; i < 9; i++) {
+        if (board[i] === "") {
+          board[i] = AI;
+          let moveValue = minimax(board, 0, false, -Infinity, Infinity);
+          board[i] = "";
+          if (moveValue > bestValue) {
+            bestValue = moveValue;
+            move = i;
+          }
+        }
+      }
+      return move;
+    }
+
+    restartBtn.addEventListener('click', () => {
+      gameBoard = ["", "", "", "", "", "", "", "", ""];
+      gameOver = false;
+      statusText.textContent = "";
+      renderBoard();
+    });
+
+    renderBoard();
+  </script>
+</body>
+</html>
